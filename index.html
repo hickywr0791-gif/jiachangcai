@@ -300,6 +300,26 @@
     .empty .icon { font-size: 48px; margin-bottom: 10px; }
 
     .hidden { display: none !important; }
+
+    /* Search */
+    .search-box {
+      padding: 10px 12px;
+      position: sticky;
+      top: 56px;
+      z-index: 9;
+      background: #f5f5f5;
+    }
+    .search-box input {
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      background: white;
+    }
+    .search-box input:focus { border-color: #ee5a24; }
   </style>
 </head>
 <body>
@@ -341,6 +361,9 @@
   <div id="diner-mode">
     <div class="header">🏠 家里吃什么</div>
 
+    <div class="search-box">
+      <input type="text" id="dish-search" placeholder="🔍 搜搜想吃什么...">
+    </div>
     <div id="diner-menu" class="dish-list"></div>
     <div id="diner-empty" class="empty hidden">
       <div class="icon">🍽️</div>
@@ -403,10 +426,12 @@
     const dinerHistory = document.getElementById('diner-history');
     const btnSubmit = document.getElementById('btn-submit');
     const toast = document.getElementById('toast');
+    const dishSearch = document.getElementById('dish-search');
 
     // State
     let selectedDishes = [];
     let selectedTimeSlot = '';
+    let allDishes = [];
 
     // ========== TOAST ==========
     function showToast(msg) {
@@ -613,10 +638,22 @@
         return;
       }
 
+      allDishes = data;
+      renderMenu(data);
+    }
+
+    function renderMenu(dishes) {
+      if (dishes.length === 0) {
+        dinerMenu.innerHTML = '<div class="empty"><div class="icon">🔍</div>没有找到匹配的菜品</div>';
+        dinerEmpty.classList.add('hidden');
+        dinerMenu.classList.remove('hidden');
+        return;
+      }
+
       dinerMenu.classList.remove('hidden');
       dinerEmpty.classList.add('hidden');
 
-      dinerMenu.innerHTML = data.map(dish => `
+      dinerMenu.innerHTML = dishes.map(dish => `
         <div class="dish-card" data-id="${dish.id}" data-name="${dish.name}" onclick="toggleDish(this, '${dish.name.replace(/'/g, "\\'")}')">
           <div class="img">
             ${dish.image_url
@@ -630,6 +667,16 @@
         </div>
       `).join('');
     }
+
+    dishSearch.addEventListener('input', () => {
+      const term = dishSearch.value.trim().toLowerCase();
+      if (!term) {
+        renderMenu(allDishes);
+        return;
+      }
+      const filtered = allDishes.filter(d => d.name.includes(term) || (d.description || '').includes(term));
+      renderMenu(filtered);
+    });
 
     // ========== DINER: DISH SELECTION ==========
     function toggleDish(el, name) {

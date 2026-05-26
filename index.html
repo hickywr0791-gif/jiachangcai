@@ -24,6 +24,9 @@
       text-align: center;
       font-size: 20px;
       font-weight: bold;
+    }
+
+    .sticky-top {
       position: sticky;
       top: 0;
       z-index: 10;
@@ -33,9 +36,6 @@
       display: flex;
       background: white;
       border-bottom: 1px solid #eee;
-      position: sticky;
-      top: 56px;
-      z-index: 10;
     }
     .tab {
       flex: 1;
@@ -304,10 +304,8 @@
     /* Search */
     .search-box {
       padding: 10px 12px;
-      position: sticky;
-      top: 56px;
-      z-index: 9;
-      background: #f5f5f5;
+      background: white;
+      border-bottom: 1px solid #eee;
     }
     .search-box input {
       width: 100%;
@@ -339,11 +337,13 @@
 
     <!-- Chef content -->
     <div id="chef-content" class="hidden">
-      <div class="header">👨‍🍳 厨房管理</div>
-      <div class="tabs">
-        <button class="tab active" data-tab="orders">📋 订单</button>
-        <button class="tab" data-tab="dishes">🍳 菜品</button>
-        <button class="tab" data-tab="add">➕ 添加</button>
+      <div class="sticky-top">
+        <div class="header">👨‍🍳 厨房管理</div>
+        <div class="tabs">
+          <button class="tab active" data-tab="orders">📋 订单</button>
+          <button class="tab" data-tab="dishes">🍳 菜品</button>
+          <button class="tab" data-tab="add">➕ 添加</button>
+        </div>
       </div>
 
       <div id="tab-orders" class="order-list"></div>
@@ -359,24 +359,21 @@
 
   <!-- ========== DINER MODE ========== -->
   <div id="diner-mode">
-    <div class="header">🏠 家里吃什么</div>
-
-    <div class="search-box">
-      <input type="text" id="dish-search" placeholder="🔍 搜搜想吃什么...">
+    <div class="sticky-top">
+      <div class="header">🏠 家里吃什么</div>
+      <div class="search-box">
+        <input type="text" id="dish-search" placeholder="🔍 搜搜想吃什么...">
+      </div>
     </div>
+
     <div id="diner-menu" class="dish-list"></div>
     <div id="diner-empty" class="empty hidden">
       <div class="icon">🍽️</div>
       还没有菜品，等厨师来添加吧！
     </div>
 
-    <div style="padding:0 12px;margin-bottom:4px;font-size:13px;font-weight:bold;color:#666;">想吃哪个时间段？</div>
-    <div class="time-slots" id="time-slots">
-      <span class="time-slot" data-slot="明天午饭">明天午饭</span>
-      <span class="time-slot" data-slot="明天晚饭">明天晚饭</span>
-      <span class="time-slot" data-slot="周末">周末</span>
-      <span class="time-slot" data-slot="随便">随便</span>
-    </div>
+    <div style="padding:0 12px;margin-bottom:4px;font-size:13px;font-weight:bold;color:#666;">想吃哪一顿？</div>
+    <div class="time-slots" id="time-slots"></div>
 
     <div class="note-section">
       <textarea id="diner-note" placeholder="备注：还想吃什么..."></textarea>
@@ -461,6 +458,7 @@
       dinerMode.classList.add('hidden');
       chefMode.classList.remove('hidden');
     } else {
+      generateDates();
       loadDinerMenu();
       loadDinerHistory();
     }
@@ -691,24 +689,40 @@
       updateSubmitButton();
     }
 
-    // ========== DINER: TIME SLOT ==========
-    document.querySelectorAll('.time-slot').forEach(slot => {
-      slot.addEventListener('click', () => {
-        document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
-        slot.classList.add('selected');
-        selectedTimeSlot = slot.dataset.slot;
-        updateSubmitButton();
+    // ========== DINER: DATE PICKER ==========
+    function generateDates() {
+      const slots = document.getElementById('time-slots');
+      const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+      let html = '';
+      const today = new Date();
+
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        const label = `${d.getMonth() + 1}月${d.getDate()}日 ${days[d.getDay()]}`;
+        html += `<span class="time-slot" data-slot="${label}">${label}</span>`;
+      }
+
+      slots.innerHTML = html;
+
+      slots.querySelectorAll('.time-slot').forEach(slot => {
+        slot.addEventListener('click', () => {
+          slots.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
+          slot.classList.add('selected');
+          selectedTimeSlot = slot.dataset.slot;
+          updateSubmitButton();
+        });
       });
-    });
+    }
 
     // ========== DINER: SUBMIT ==========
     function updateSubmitButton() {
       if (selectedDishes.length > 0 && selectedTimeSlot) {
         btnSubmit.disabled = false;
-        btnSubmit.textContent = `📩 点了 ${selectedDishes.length} 道菜，提交！`;
+        btnSubmit.textContent = `📩 ${selectedTimeSlot} · ${selectedDishes.length} 道菜，提交！`;
       } else {
         btnSubmit.disabled = true;
-        btnSubmit.textContent = '选好菜品和时间，提交点菜';
+        btnSubmit.textContent = '选好菜品和日期，提交点菜';
       }
     }
 

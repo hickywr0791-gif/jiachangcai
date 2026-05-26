@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>家里吃什么</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+      color: white;
+      padding: 20px 16px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .tabs {
+      display: flex;
+      background: white;
+      border-bottom: 1px solid #eee;
+      position: sticky;
+      top: 56px;
+      z-index: 10;
+    }
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 12px;
+      font-size: 14px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: #999;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab.active {
+      color: #ee5a24;
+      border-bottom-color: #ee5a24;
+      font-weight: bold;
+    }
+
+    .dish-list {
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .dish-card {
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      border: 2px solid transparent;
+    }
+    .dish-card:active { transform: scale(0.97); }
+    .dish-card.selected { border-color: #ee5a24; }
+    .dish-card .img {
+      height: 100px;
+      background: #eee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      color: #ccc;
+    }
+    .dish-card .img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .dish-card .info {
+      padding: 8px 10px;
+    }
+    .dish-card .info .name {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+    .dish-card .info .desc {
+      font-size: 11px;
+      color: #999;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .time-slots {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 0 12px;
+      margin-bottom: 10px;
+    }
+    .time-slot {
+      padding: 6px 14px;
+      border-radius: 16px;
+      border: 1px solid #ddd;
+      background: white;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .time-slot.selected {
+      background: #ee5a24;
+      color: white;
+      border-color: #ee5a24;
+    }
+
+    .note-section {
+      padding: 0 12px;
+      margin-bottom: 10px;
+    }
+    .note-section textarea {
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 14px;
+      resize: none;
+      height: 60px;
+      font-family: inherit;
+    }
+
+    .submit-section {
+      padding: 0 12px 20px;
+    }
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-submit:active { opacity: 0.9; }
+    .btn-submit:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .order-list {
+      padding: 12px;
+    }
+    .order-card {
+      background: white;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      border-left: 4px solid #eee;
+    }
+    .order-card.pending {
+      border-left-color: #ff6b6b;
+      background: #fff8f8;
+    }
+    .order-card.confirmed {
+      border-left-color: #4cd137;
+      background: #f8fff8;
+    }
+    .order-card .order-dishes {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .order-card .order-meta {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 6px;
+    }
+    .order-card .order-note {
+      font-size: 12px;
+      color: #666;
+      background: #f9f9f9;
+      padding: 6px 8px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+    }
+    .btn-confirm {
+      padding: 6px 16px;
+      background: #4cd137;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-delete {
+      padding: 6px 16px;
+      background: #ff6b6b;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      margin-left: 6px;
+    }
+
+    .add-form {
+      padding: 12px;
+    }
+    .add-form input,
+    .add-form textarea {
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 14px;
+      margin-bottom: 8px;
+      font-family: inherit;
+    }
+    .add-form textarea { height: 60px; resize: none; }
+    .btn-add {
+      width: 100%;
+      padding: 12px;
+      background: #ee5a24;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .password-gate {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 80vh;
+      padding: 20px;
+    }
+    .password-gate input {
+      width: 100%;
+      max-width: 260px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 16px;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .password-gate .btn-enter {
+      padding: 10px 40px;
+      background: #ee5a24;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .password-error {
+      color: #ff6b6b;
+      font-size: 13px;
+      margin-top: 6px;
+    }
+
+    .toast {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: white;
+      padding: 10px 24px;
+      border-radius: 20px;
+      font-size: 14px;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+
+    .empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: #ccc;
+      font-size: 14px;
+    }
+    .empty .icon { font-size: 48px; margin-bottom: 10px; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <!-- ========== CHEF MODE ========== -->
+  <div id="chef-mode" class="hidden">
+    <!-- Password gate -->
+    <div id="password-gate" class="password-gate">
+      <div style="font-size:48px;margin-bottom:16px;">👨‍🍳</div>
+      <div style="font-size:16px;margin-bottom:12px;color:#666;">厨师入口</div>
+      <input type="password" id="password-input" placeholder="输入密码">
+      <button class="btn-enter" id="btn-enter">进入</button>
+      <div id="password-error" class="password-error"></div>
+    </div>
+
+    <!-- Chef content -->
+    <div id="chef-content" class="hidden">
+      <div class="header">👨‍🍳 厨房管理</div>
+      <div class="tabs">
+        <button class="tab active" data-tab="orders">📋 订单</button>
+        <button class="tab" data-tab="dishes">🍳 菜品</button>
+        <button class="tab" data-tab="add">➕ 添加</button>
+      </div>
+
+      <div id="tab-orders" class="order-list"></div>
+      <div id="tab-dishes" class="dish-list hidden"></div>
+      <div id="tab-add" class="add-form hidden">
+        <input type="text" id="add-name" placeholder="菜名 *">
+        <textarea id="add-desc" placeholder="描述（选填）"></textarea>
+        <input type="text" id="add-image" placeholder="图片链接（选填）">
+        <button class="btn-add" id="btn-add">添加菜品</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== DINER MODE ========== -->
+  <div id="diner-mode">
+    <div class="header">🏠 家里吃什么</div>
+
+    <div id="diner-menu" class="dish-list"></div>
+    <div id="diner-empty" class="empty hidden">
+      <div class="icon">🍽️</div>
+      还没有菜品，等厨师来添加吧！
+    </div>
+
+    <div style="padding:0 12px;margin-bottom:4px;font-size:13px;font-weight:bold;color:#666;">想吃哪个时间段？</div>
+    <div class="time-slots" id="time-slots">
+      <span class="time-slot" data-slot="明天午饭">明天午饭</span>
+      <span class="time-slot" data-slot="明天晚饭">明天晚饭</span>
+      <span class="time-slot" data-slot="周末">周末</span>
+      <span class="time-slot" data-slot="随便">随便</span>
+    </div>
+
+    <div class="note-section">
+      <textarea id="diner-note" placeholder="备注：还想吃什么..."></textarea>
+    </div>
+
+    <div class="submit-section">
+      <button class="btn-submit" id="btn-submit" disabled>选好菜品和时间，提交点菜</button>
+    </div>
+
+    <div style="padding:12px;border-top:1px solid #eee;">
+      <div style="font-size:13px;font-weight:bold;color:#999;margin-bottom:8px;">我的历史订单</div>
+      <div id="diner-history" class="order-list"></div>
+    </div>
+  </div>
+
+  <script>
+    // ========== CONFIGURATION ==========
+    // 替换为你的 Supabase 项目信息
+    const SUPABASE_URL = 'https://uksqoxtksceqgfziruvw.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrc3FveHRrc2NlcWdmemlydXZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwODA1MjgsImV4cCI6MjA2NDY1NjUyOH0.KJJK7PrPV9_EBX0oEwW2H_JpWj6VhxJTrjjWfCWhVCA';
+    const CHEF_PASSWORD = '888888';
+
+    // ========== INIT ==========
+    const { createClient } = supabase;
+    const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // DOM refs - Chef
+    const chefMode = document.getElementById('chef-mode');
+    const chefContent = document.getElementById('chef-content');
+    const passwordGate = document.getElementById('password-gate');
+    const passwordInput = document.getElementById('password-input');
+    const passwordError = document.getElementById('password-error');
+    const btnEnter = document.getElementById('btn-enter');
+    const tabOrders = document.getElementById('tab-orders');
+    const tabDishes = document.getElementById('tab-dishes');
+    const tabAdd = document.getElementById('tab-add');
+    const addName = document.getElementById('add-name');
+    const addDesc = document.getElementById('add-desc');
+    const addImage = document.getElementById('add-image');
+    const btnAdd = document.getElementById('btn-add');
+
+    // DOM refs - Diner
+    const dinerMode = document.getElementById('diner-mode');
+    const dinerMenu = document.getElementById('diner-menu');
+    const dinerEmpty = document.getElementById('diner-empty');
+    const dinerNote = document.getElementById('diner-note');
+    const dinerHistory = document.getElementById('diner-history');
+    const btnSubmit = document.getElementById('btn-submit');
+    const toast = document.getElementById('toast');
+
+    // State
+    let selectedDishes = [];
+    let selectedTimeSlot = '';
+
+    // ========== TOAST ==========
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    // ========== PASSWORD GATE ==========
+    btnEnter.addEventListener('click', () => {
+      if (passwordInput.value === CHEF_PASSWORD) {
+        passwordGate.classList.add('hidden');
+        chefContent.classList.remove('hidden');
+        loadChefOrders();
+      } else {
+        passwordError.textContent = '密码不对哦';
+      }
+    });
+
+    passwordInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') btnEnter.click();
+    });
+
+    // ========== MODE DETECTION ==========
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('chef') === 'true') {
+      dinerMode.classList.add('hidden');
+      chefMode.classList.remove('hidden');
+    } else {
+      loadDinerMenu();
+      loadDinerHistory();
+    }
+
+    // ========== CHEF: ORDERS ==========
+    async function loadChefOrders() {
+      const { data, error } = await db
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        tabOrders.innerHTML = '<div class="empty"><div class="icon">😵</div>加载失败</div>';
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        tabOrders.innerHTML = '<div class="empty"><div class="icon">📭</div>还没有订单</div>';
+        return;
+      }
+
+      tabOrders.innerHTML = data.map(order => {
+        const dishes = Array.isArray(order.dishes) ? order.dishes : JSON.parse(order.dishes || '[]');
+        const isPending = order.status === 'pending';
+        return `
+          <div class="order-card ${order.status}">
+            <div class="order-dishes">🍽️ ${dishes.join('、') || '（无菜品）'}</div>
+            <div class="order-meta">
+              ⏰ ${order.time_slot || '未指定时间'} &nbsp;·&nbsp; ${new Date(order.created_at).toLocaleString('zh-CN')}
+            </div>
+            ${order.note ? `<div class="order-note">💬 ${order.note}</div>` : ''}
+            ${isPending
+              ? `<button class="btn-confirm" onclick="confirmOrder(${order.id})">✅ 收到，安排！</button>`
+              : '<span style="font-size:12px;color:#4cd137;">✓ 已确认</span>'}
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function confirmOrder(id) {
+      const { error } = await db
+        .from('orders')
+        .update({ status: 'confirmed' })
+        .eq('id', id);
+
+      if (error) {
+        showToast('操作失败，请重试');
+        return;
+      }
+      showToast('已确认！');
+      loadChefOrders();
+    }
+
+    // ========== CHEF: DISHES ==========
+    async function loadChefDishes() {
+      const { data, error } = await db
+        .from('dishes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        tabDishes.innerHTML = '<div class="empty"><div class="icon">😵</div>加载失败</div>';
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        tabDishes.innerHTML = '<div class="empty"><div class="icon">🍳</div>还没有菜品，去"添加"tab 录入吧</div>';
+        return;
+      }
+
+      tabDishes.innerHTML = data.map(dish => `
+        <div class="dish-card">
+          <div class="img">
+            ${dish.image_url
+              ? `<img src="${dish.image_url}" alt="${dish.name}" onerror="this.parentElement.innerHTML='🍽️'">`
+              : '🍽️'}
+          </div>
+          <div class="info">
+            <div class="name">${dish.name}</div>
+            <div class="desc">${dish.description || ''}</div>
+          </div>
+          <button class="btn-delete" style="width:100%;margin:0;" onclick="deleteDish(${dish.id})">删除</button>
+        </div>
+      `).join('');
+    }
+
+    async function deleteDish(id) {
+      if (!confirm('确定要删除这道菜吗？')) return;
+
+      const { error } = await db
+        .from('dishes')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        showToast('删除失败');
+        return;
+      }
+      showToast('已删除');
+      loadChefDishes();
+    }
+
+    // ========== CHEF: ADD DISH ==========
+    btnAdd.addEventListener('click', async () => {
+      const name = addName.value.trim();
+      if (!name) {
+        showToast('请输入菜名');
+        return;
+      }
+
+      const { error } = await db
+        .from('dishes')
+        .insert({
+          name,
+          description: addDesc.value.trim(),
+          image_url: addImage.value.trim()
+        });
+
+      if (error) {
+        showToast('添加失败，请重试');
+        return;
+      }
+
+      showToast('菜品已添加！');
+      addName.value = '';
+      addDesc.value = '';
+      addImage.value = '';
+      loadChefDishes();
+    });
+
+    // ========== CHEF: TAB SWITCHING ==========
+    document.querySelectorAll('#chef-content .tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabName = tab.dataset.tab;
+
+        document.querySelectorAll('#chef-content .tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        tabOrders.classList.add('hidden');
+        tabDishes.classList.add('hidden');
+        tabAdd.classList.add('hidden');
+
+        if (tabName === 'orders') {
+          tabOrders.classList.remove('hidden');
+          loadChefOrders();
+        } else if (tabName === 'dishes') {
+          tabDishes.classList.remove('hidden');
+          loadChefDishes();
+        } else if (tabName === 'add') {
+          tabAdd.classList.remove('hidden');
+        }
+      });
+    });
+
+    // ========== DINER: MENU ==========
+    async function loadDinerMenu() {
+      const { data, error } = await db
+        .from('dishes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error || !data || data.length === 0) {
+        dinerMenu.classList.add('hidden');
+        dinerEmpty.classList.remove('hidden');
+        return;
+      }
+
+      dinerMenu.classList.remove('hidden');
+      dinerEmpty.classList.add('hidden');
+
+      dinerMenu.innerHTML = data.map(dish => `
+        <div class="dish-card" data-id="${dish.id}" data-name="${dish.name}" onclick="toggleDish(this, '${dish.name.replace(/'/g, "\\'")}')">
+          <div class="img">
+            ${dish.image_url
+              ? `<img src="${dish.image_url}" alt="${dish.name}" onerror="this.parentElement.innerHTML='🍽️'">`
+              : '🍽️'}
+          </div>
+          <div class="info">
+            <div class="name">${dish.name}</div>
+            <div class="desc">${dish.description || ''}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ========== DINER: DISH SELECTION ==========
+    function toggleDish(el, name) {
+      el.classList.toggle('selected');
+
+      if (el.classList.contains('selected')) {
+        selectedDishes.push(name);
+      } else {
+        selectedDishes = selectedDishes.filter(d => d !== name);
+      }
+
+      updateSubmitButton();
+    }
+
+    // ========== DINER: TIME SLOT ==========
+    document.querySelectorAll('.time-slot').forEach(slot => {
+      slot.addEventListener('click', () => {
+        document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
+        slot.classList.add('selected');
+        selectedTimeSlot = slot.dataset.slot;
+        updateSubmitButton();
+      });
+    });
+
+    // ========== DINER: SUBMIT ==========
+    function updateSubmitButton() {
+      if (selectedDishes.length > 0 && selectedTimeSlot) {
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = `📩 点了 ${selectedDishes.length} 道菜，提交！`;
+      } else {
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = '选好菜品和时间，提交点菜';
+      }
+    }
+
+    btnSubmit.addEventListener('click', async () => {
+      if (!selectedDishes.length || !selectedTimeSlot) return;
+
+      const { error } = await db
+        .from('orders')
+        .insert({
+          dishes: selectedDishes,
+          time_slot: selectedTimeSlot,
+          note: dinerNote.value.trim()
+        });
+
+      if (error) {
+        showToast('提交失败，请重试');
+        return;
+      }
+
+      showToast('点菜成功！等大厨安排~');
+
+      selectedDishes = [];
+      selectedTimeSlot = '';
+      dinerNote.value = '';
+      document.querySelectorAll('.dish-card.selected').forEach(c => c.classList.remove('selected'));
+      document.querySelectorAll('.time-slot.selected').forEach(s => s.classList.remove('selected'));
+      updateSubmitButton();
+      loadDinerHistory();
+    });
+
+    // ========== DINER: ORDER HISTORY ==========
+    async function loadDinerHistory() {
+      const { data, error } = await db
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error || !data || data.length === 0) {
+        dinerHistory.innerHTML = '<div class="empty" style="padding:20px;"><div style="font-size:24px;">📝</div>暂无订单</div>';
+        return;
+      }
+
+      dinerHistory.innerHTML = data.map(order => {
+        const dishes = Array.isArray(order.dishes) ? order.dishes : JSON.parse(order.dishes || '[]');
+        return `
+          <div class="order-card ${order.status}">
+            <div class="order-dishes">🍽️ ${dishes.join('、') || '（无菜品）'}</div>
+            <div class="order-meta">
+              ⏰ ${order.time_slot || '未指定'} &nbsp;·&nbsp; ${new Date(order.created_at).toLocaleString('zh-CN')}
+            </div>
+            ${order.note ? `<div class="order-note">💬 ${order.note}</div>` : ''}
+            <span style="font-size:12px;color:${order.status === 'confirmed' ? '#4cd137' : '#ff6b6b'};">
+              ${order.status === 'confirmed' ? '✓ 大厨已确认' : '⏳ 等待确认'}
+            </span>
+          </div>
+        `;
+      }).join('');
+    }
+  </script>
+</body>
+</html>
